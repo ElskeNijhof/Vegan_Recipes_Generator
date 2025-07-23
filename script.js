@@ -16,19 +16,56 @@ function getRecipes() {
         return;
       }
 
-      data.results.forEach(recipe => {
+
+    // Filtered functie aanroepen en 'oven' als input geven
+    filterOutRecipesWithUnwantedEquipment(data.results, ["oven"]).then(filteredRecipes => {
+    if (filteredRecipes.length === 0) {
+        recipesDiv.innerHTML = "<p>No recipes matched the filter (oven excluded).</p>";
+        return;
+    }
+
+    filteredRecipes.forEach(recipe => {
         const recipeHTML = `
-          <div class="recipe">
+        <div class="recipe">
             <h3>${recipe.title}</h3>
             <img src="${recipe.image}" alt="${recipe.title}" />
             <p><a href="${recipe.sourceUrl}" target="_blank">View Full Recipe</a></p>
-          </div>
+        </div>
         `;
         recipesDiv.innerHTML += recipeHTML;
-      });
-    })
-    .catch(error => {
-      console.error("Error fetching recipes:", error);
-      document.getElementById("recipes").innerHTML = "<p>Something went wrong.</p>";
     });
+    });
+})
+ // Checkt of er recepten gevonden worden of niet. 
+    .catch(error => {
+        console.error("Error fetching recipes:", error);
+        document.getElementById("recipes").innerHTML = "<p>Something went wrong.</p>";
+    });
+}
+
+// async functie definieren om recepten met een oven weg te filteren.
+async function filterOutRecipesWithUnwantedEquipment(recipes, excludedEquipmentList) {
+  const filteredRecipes = [];
+
+  for (const recipe of recipes) {
+    const equipmentUrl = `https://api.spoonacular.com/recipes/${recipe.id}/equipmentWidget.json?apiKey=${apiKey}`;
+    
+    try {
+      const response = await fetch(equipmentUrl);
+      const data = await response.json();
+      const toolsUsed = data.equipment.map(eq => eq.name.toLowerCase());
+
+      const hasExcludedTool = excludedEquipmentList.some(tool =>
+        toolsUsed.includes(tool.toLowerCase())
+      );
+
+      if (!hasExcludedTool) {
+        filteredRecipes.push(recipe);
+      }
+    } catch (error) {
+      console.error(`Error checking equipment for recipe ${recipe.id}`, error);
+    }
+  }
+
+  return filteredRecipes;
 }
